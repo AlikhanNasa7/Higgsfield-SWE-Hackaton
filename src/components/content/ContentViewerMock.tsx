@@ -47,9 +47,9 @@ export function ContentViewerMock() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex items-center justify-center p-8">
+      <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
         <motion.div
-          className="w-full h-full flex items-center justify-center"
+          className="w-full h-full flex items-center justify-center relative"
           variants={fadeUp}
           initial="initial"
           animate="animate"
@@ -58,14 +58,32 @@ export function ContentViewerMock() {
             <img
               src={selectedContent.url}
               alt={selectedContent.title || 'Generated image'}
-              className="max-w-full max-h-full object-contain rounded-2xl shadow-elevated"
+              className="w-full h-full object-contain rounded-xl shadow-elevated"
+              style={{
+                maxWidth: '100%',
+                maxHeight: '100%',
+                width: 'auto',
+                height: 'auto',
+              }}
             />
           ) : (
             <video
               src={selectedContent.url}
               controls
-              className="max-w-full max-h-full rounded-2xl shadow-elevated"
+              loop
+              autoPlay
+              playsInline
+              disablePictureInPicture
               preload="metadata"
+              className="w-full h-full object-contain rounded-xl shadow-elevated"
+              style={{
+                backgroundColor: '#000',
+                maxWidth: '100%',
+                maxHeight: '100%',
+                width: 'auto',
+                height: 'auto',
+              }}
+              aria-label={selectedContent.title || 'Video content'}
             >
               Your browser does not support the video tag.
             </video>

@@ -1,98 +1,136 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useMemo } from 'react'
+import { motion } from 'framer-motion'
 import { useUIStore } from '@/lib/store'
-import { getMessages } from '@/lib/api'
-import { MessageBubble } from './MessageBubble'
+import { useMessages } from '@/lib/hooks/useMessages'
+import { MessageBubbleBackend } from './MessageBubbleBackend'
 import { Composer } from './Composer'
-import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton'
-import { ErrorState } from '@/components/ui/ErrorState'
-import { EmptyState } from '@/components/ui/EmptyState'
-import { MessageSquare } from 'lucide-react'
+import { MessageSquare, Loader2 } from 'lucide-react'
+import { fadeUp, stagger } from '@/lib/motion'
+import type { BackendMessage } from '@/types/schemas'
 
 export function ChatTranscript() {
-  const { selectedChatId } = useUIStore()
+  const { selectedChat } = useUIStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const {
-    data: messages,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ['chat', selectedChatId, 'messages'],
-    queryFn: () => getMessages(selectedChatId!),
-    enabled: !!selectedChatId,
-  })
+  const { data: messagesResponse, isLoading, error } = useMessages(selectedChat?.id || null)
+  const chatMessages = useMemo(() => {
+    return messagesResponse?.items || []
+  }, [messagesResponse])
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  }, [chatMessages])
 
-  if (!selectedChatId) {
+  console.log('chatMessages', chatMessages)
+
+  if (!selectedChat) {
     return (
-      <div className="h-full flex flex-col">
-        <div className="flex-1">
-          <EmptyState
-            icon={MessageSquare}
-            title="Select a chat"
-            description="Choose a chat from the sidebar to start the conversation."
-          />
-        </div>
+      <div className="h-full flex flex-col items-center justify-center">
+        <motion.div
+          className="text-center space-y-4 max-w-md"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4 }}
+        >
+          <div className="w-20 h-20 rounded-2xl glass mx-auto flex items-center justify-center">
+            <MessageSquare className="w-10 h-10 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-xl font-semibold text-text mb-2">Select a chat</h3>
+            <p className="text-muted">Choose a chat from the sidebar to start the conversation.</p>
+          </div>
+        </motion.div>
       </div>
     )
   }
 
   if (isLoading) {
     return (
-      <div className="h-full flex flex-col">
-        <div className="flex-1 p-4">
-          <LoadingSkeleton />
-        </div>
-        <div className="border-t border-gray-200 dark:border-gray-700">
-          <Composer />
-        </div>
+      <div className="h-full flex flex-col items-center justify-center">
+        <motion.div
+          className="text-center space-y-4"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4 }}
+        >
+          <div className="w-16 h-16 rounded-2xl glass mx-auto flex items-center justify-center">
+            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-text mb-1">Loading messages...</h3>
+            <p className="text-sm text-muted">Fetching your conversation history.</p>
+          </div>
+        </motion.div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="h-full flex flex-col">
-        <div className="flex-1">
-          <ErrorState
-            title="Failed to load messages"
-            message="Unable to load the chat messages. Please try again."
-            onRetry={() => window.location.reload()}
-          />
-        </div>
+      <div className="h-full flex flex-col items-center justify-center">
+        <motion.div
+          className="text-center space-y-4 max-w-md"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4 }}
+        >
+          <div className="w-16 h-16 rounded-2xl glass mx-auto flex items-center justify-center">
+            <MessageSquare className="w-8 h-8 text-error" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-text mb-1">Failed to load messages</h3>
+            <p className="text-sm text-muted">
+              There was an error loading your conversation. Please try again.
+            </p>
+          </div>
+        </motion.div>
       </div>
     )
   }
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-gray-900">
+    <div className="h-full flex flex-col bg-surface/50">
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages && messages.length > 0 ? (
-          <>
-            {messages.map((message) => (
-              <MessageBubble key={message.id} message={message} />
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        {chatMessages && chatMessages.length > 0 ? (
+          <motion.div
+            className="space-y-6"
+            variants={stagger(0, 0.05)}
+            initial="initial"
+            animate="animate"
+          >
+            {chatMessages.map((message: BackendMessage) => (
+              <motion.div key={message.id} variants={fadeUp}>
+                <MessageBubbleBackend message={message} />
+              </motion.div>
             ))}
             <div ref={messagesEndRef} />
-          </>
+          </motion.div>
         ) : (
-          <EmptyState
-            icon={MessageSquare}
-            title="No messages yet"
-            description="Start the conversation by typing a message below."
-          />
+          <div className="flex items-center justify-center h-full">
+            <motion.div
+              className="text-center space-y-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="w-16 h-16 rounded-2xl glass mx-auto flex items-center justify-center">
+                <MessageSquare className="w-8 h-8 text-muted" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-text mb-1">No messages yet</h3>
+                <p className="text-sm text-muted">
+                  Start the conversation by typing a message below.
+                </p>
+              </div>
+            </motion.div>
+          </div>
         )}
       </div>
 
       {/* Composer */}
-      <div className="border-t border-gray-200 dark:border-gray-700">
+      <div className="border-t border-border glass">
         <Composer />
       </div>
     </div>

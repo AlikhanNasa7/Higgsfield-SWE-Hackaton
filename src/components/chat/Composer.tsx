@@ -1,96 +1,97 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useDropzone } from 'react-dropzone'
-import { Send, Image, Video, Upload, X } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { motion } from 'framer-motion'
+import { Send, Loader2, Image, Video, Upload } from 'lucide-react'
 import { useUIStore } from '@/lib/store'
-import { sendMessage } from '@/lib/api'
-import { type Mode, type SendPayload } from '@/types/schemas'
+import { usePostMessage } from '@/lib/hooks/useMessages'
 
-const MODES: { value: Mode; label: string; icon: React.ReactNode }[] = [
+const GENERATION_MODES = [
   {
     value: 'text-to-image',
     label: 'Text → Image',
-    icon: <Image className="w-4 h-4" />,
+    icon: <Image className="w-4 h-4" aria-label="Image generation" />,
   },
   {
     value: 'text-to-video',
     label: 'Text → Video',
-    icon: <Video className="w-4 h-4" />,
+    icon: <Video className="w-4 h-4" aria-label="Video generation" />,
   },
   {
     value: 'image-to-video',
     label: 'Image → Video',
-    icon: <Upload className="w-4 h-4" />,
+    icon: <Upload className="w-4 h-4" aria-label="Image to video" />,
+  },
+  {
+    value: 'speak',
+    label: 'Speak',
+    icon: <Video className="w-4 h-4" aria-label="Speak generation" />,
   },
 ]
 
+const MODELS = [
+  // Text to Image models
+  { value: 'nano-banana', label: 'Nano Banana', generationMode: 'text-to-image' },
+  { value: 'seedream-4', label: 'Seedream 4.0', generationMode: 'text-to-image' },
+  { value: 'minimax-hailuo', label: 'Minimax Hailuo 02', generationMode: 'text-to-image' },
+
+  // Text to Video models
+  { value: 'sora-2', label: 'Sora 2', generationMode: 'text-to-video' },
+  { value: 'minimax-hailuo-video', label: 'Minimax Hailuo 02', generationMode: 'text-to-video' },
+  { value: 'seedance-lite', label: 'Seedance 1.0 Lite', generationMode: 'text-to-video' },
+
+  // Image to Video models
+  { value: 'kling-2.5', label: 'Kling 2.5 Turbo', generationMode: 'image-to-video' },
+  { value: 'minimax-hailuo-img2vid', label: 'Minimax Hailuo 02', generationMode: 'image-to-video' },
+  { value: 'seedance-1.0', label: 'Seedance 1.0', generationMode: 'image-to-video' },
+  { value: 'veo-3', label: 'Veo 3', generationMode: 'image-to-video' },
+  { value: 'wan-2.5', label: 'Wan 2.5 Fast', generationMode: 'image-to-video' },
+
+  // Special models
+  { value: 'veo-3-speak', label: 'Veo 3 Speak', generationMode: 'speak' },
+]
+
 export function Composer() {
-  const { selectedChatId, currentMode, setMode, setUploadProgress } =
-    useUIStore()
-  const [prompt, setPrompt] = useState('')
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const { selectedChat } = useUIStore()
+  const [message, setMessage] = useState('')
+  const [generationMode, setGenerationMode] = useState('text-to-image')
+  const [selectedModel, setSelectedModel] = useState('nano-banana')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const queryClient = useQueryClient()
 
-  const sendMutation = useMutation({
-    mutationFn: (payload: SendPayload) => sendMessage(selectedChatId!, payload),
-    onSuccess: () => {
-      setPrompt('')
-      setSelectedFile(null)
-      setImagePreview(null)
-      setUploadProgress(null)
-      queryClient.invalidateQueries({
-        queryKey: ['chat', selectedChatId, 'messages'],
-      })
-      queryClient.invalidateQueries({
-        queryKey: ['chat', selectedChatId, 'contents'],
-      })
-      textareaRef.current?.focus()
-    },
-    onError: () => {
-      setUploadProgress(null)
-    },
-  })
+  const postMessageMutation = usePostMessage()
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const file = acceptedFiles[0]
-    if (file && file.type.startsWith('image/')) {
-      setSelectedFile(file)
-      const reader = new FileReader()
-      reader.onload = () => setImagePreview(reader.result as string)
-      reader.readAsDataURL(file)
+  // Filter models based on selected generation mode
+  const availableModels = MODELS.filter(model => model.generationMode === generationMode)
+
+  // Update selected model when generation mode changes
+  const handleGenerationModeChange = (mode: string) => {
+    setGenerationMode(mode)
+    const firstAvailableModel = MODELS.find(model => model.generationMode === mode)
+    if (firstAvailableModel) {
+      setSelectedModel(firstAvailableModel.value)
     }
-  }, [])
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'],
-    },
-    maxFiles: 1,
-    disabled: currentMode !== 'image-to-video',
-  })
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedChatId || !prompt.trim() || sendMutation.isPending) return
+    if (!selectedChat || !message.trim() || postMessageMutation.isPending) return
 
-    const payload: SendPayload = {
-      mode: currentMode,
-      prompt: prompt.trim(),
-      ...(currentMode === 'image-to-video' &&
-        selectedFile && { imageFile: selectedFile }),
-    }
+    // Create a formatted message with mode and model info
+    const formattedMessage = `[${generationMode.toUpperCase()}] [${selectedModel.toUpperCase()}] ${message.trim()}`
 
-    sendMutation.mutate(payload)
-  }
-
-  const removeImage = () => {
-    setSelectedFile(null)
-    setImagePreview(null)
+    postMessageMutation.mutate(
+      { chatId: selectedChat.id, content: formattedMessage },
+      {
+        onSuccess: () => {
+          console.log('Message posted successfully')
+          setMessage('')
+          textareaRef.current?.focus()
+        },
+        onError: error => {
+          console.error('Error posting message:', error)
+        },
+      }
+    )
   }
 
   const adjustTextareaHeight = () => {
@@ -101,130 +102,112 @@ export function Composer() {
     }
   }
 
-  if (!selectedChatId) {
-    return (
-      <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-        Select a chat to start messaging
-      </div>
-    )
+  if (!selectedChat) {
+    return <div className="p-6 text-center text-muted">Select a chat to start messaging</div>
   }
 
   return (
-    <div className="p-4 bg-white dark:bg-gray-900">
-      {/* Mode selector */}
-      <div className="flex gap-1 mb-3">
-        {MODES.map((mode) => (
-          <button
-            key={mode.value}
-            onClick={() => {
-              setMode(mode.value)
-              if (mode.value !== 'image-to-video') {
-                removeImage()
-              }
-            }}
-            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-              currentMode === mode.value
-                ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-            }`}
-          >
-            {mode.icon}
-            {mode.label}
-          </button>
-        ))}
+    <div className="p-6 space-y-4">
+      {/* Loading indicator for assistant response */}
+      {postMessageMutation.isPending && (
+        <motion.div
+          className="flex items-center gap-3 px-4 py-3 rounded-xl glass"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <Loader2 className="w-5 h-5 text-primary animate-spin" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-text">Sending message...</p>
+            <p className="text-xs text-muted">Waiting for response</p>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Generation Mode Selection */}
+      <div className="space-y-3">
+        <div className="flex gap-2 flex-wrap">
+          {GENERATION_MODES.map(mode => (
+            <motion.button
+              key={mode.value}
+              type="button"
+              onClick={() => handleGenerationModeChange(mode.value)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ring-focus ${
+                generationMode === mode.value
+                  ? 'bg-primary/20 text-primary border border-primary/30'
+                  : 'glass text-muted hover:text-text hover:bg-white/5'
+              }`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              {mode.icon}
+              <span className="hidden sm:inline">{mode.label}</span>
+            </motion.button>
+          ))}
+        </div>
+
+        {/* Model Selection */}
+        <div className="flex gap-2 flex-wrap">
+          {availableModels.map(model => (
+            <motion.button
+              key={model.value}
+              type="button"
+              onClick={() => setSelectedModel(model.value)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ring-focus ${
+                selectedModel === model.value
+                  ? 'bg-accent/20 text-accent border border-accent/30'
+                  : 'glass text-muted hover:text-text hover:bg-white/5'
+              }`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              {model.label}
+            </motion.button>
+          ))}
+        </div>
       </div>
 
-      {/* Image upload area for image-to-video mode */}
-      {currentMode === 'image-to-video' && (
-        <div
-          {...getRootProps()}
-          className={`mb-3 p-4 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-            isDragActive
-              ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/10'
-              : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-          }`}
-        >
-          <input {...getInputProps()} />
-          {imagePreview ? (
-            <div className="relative">
-              <img
-                src={imagePreview}
-                alt="Preview"
-                className="max-h-32 w-auto mx-auto rounded"
-              />
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  removeImage()
-                }}
-                className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          ) : (
-            <div className="text-center">
-              <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {isDragActive
-                  ? 'Drop the image here...'
-                  : 'Drag & drop an image, or click to select'}
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Upload progress */}
-      {sendMutation.isPending && (
-        <div className="mb-3">
-          <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
-            <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            Generating {currentMode.replace('-', ' ')}...
-          </div>
-        </div>
-      )}
-
       {/* Form */}
-      <form onSubmit={handleSubmit} className="flex gap-2">
+      <form onSubmit={handleSubmit} className="flex gap-3">
         <div className="flex-1">
           <textarea
             ref={textareaRef}
-            value={prompt}
-            onChange={(e) => {
-              setPrompt(e.target.value)
+            value={message}
+            onChange={e => {
+              setMessage(e.target.value)
               adjustTextareaHeight()
             }}
-            onKeyDown={(e) => {
+            onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
                 handleSubmit(e)
               }
             }}
-            placeholder={`Describe what you want to generate...`}
-            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md resize-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder={`Describe what you want to generate with ${selectedModel}...`}
+            className="w-full px-4 py-3 text-sm glass border border-border rounded-xl resize-none text-text placeholder-muted ring-focus transition-all focus:border-primary/50"
             rows={1}
-            disabled={sendMutation.isPending}
+            disabled={postMessageMutation.isPending}
           />
         </div>
-        <button
+        <motion.button
           type="submit"
-          disabled={
-            !prompt.trim() ||
-            sendMutation.isPending ||
-            (currentMode === 'image-to-video' && !selectedFile)
-          }
-          className="flex-shrink-0 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          disabled={!message.trim() || postMessageMutation.isPending}
+          className="flex-shrink-0 px-6 py-3 rounded-xl bg-primary text-black font-semibold shadow-glow-primary hover:bg-white hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all ring-focus"
+          whileHover={{ scale: postMessageMutation.isPending ? 1 : 1.02 }}
+          whileTap={{ scale: postMessageMutation.isPending ? 1 : 0.98 }}
         >
-          <Send className="w-4 h-4" />
-        </button>
+          <Send className="w-5 h-5" />
+        </motion.button>
       </form>
 
-      {/* Error message */}
-      {sendMutation.error && (
-        <div className="mt-2 text-sm text-red-600 dark:text-red-400">
+      {/* Error */}
+      {postMessageMutation.error && (
+        <motion.div
+          className="px-4 py-3 rounded-xl bg-error/20 border border-error/30 text-error text-sm"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
           Failed to send message. Please try again.
-        </div>
+        </motion.div>
       )}
     </div>
   )

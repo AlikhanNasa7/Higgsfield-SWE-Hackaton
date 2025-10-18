@@ -5,7 +5,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { chatsService, messagesService, contentsService } from '../dataService'
-import { type SendPayload } from '@/types/schemas'
+import { type SendPayload, type Chat } from '@/types/schemas'
 
 // ============================================================================
 // CHATS HOOKS
@@ -23,7 +23,13 @@ export function useCreateChat() {
 
   return useMutation({
     mutationFn: (title: string) => chatsService.create(title),
-    onSuccess: () => {
+    onSuccess: data => {
+      // Add the new chat to the cache immediately
+      queryClient.setQueryData(['chats'], (old: Chat[] | undefined) => {
+        if (!old) return [data.chat]
+        return [data.chat, ...old]
+      })
+      // Also invalidate to ensure fresh data
       queryClient.invalidateQueries({ queryKey: ['chats'] })
     },
   })

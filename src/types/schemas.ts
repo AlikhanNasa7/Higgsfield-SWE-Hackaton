@@ -23,8 +23,10 @@ export const MessageSchema = z.object({
 export const ChatSchema = z.object({
   id: z.string(),
   title: z.string(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  created_at: z.string(),
+  user_id: z.string(),
+  message_count: z.number(),
+  last_message_at: z.string().nullable(),
 })
 
 export const Content = z.enum(['image', 'video'])
@@ -38,6 +40,40 @@ export const ContentItemSchema = z.object({
 })
 
 export const ModeSchema = z.enum(['text-to-image', 'text-to-video', 'image-to-video'])
+
+// Backend API Message Schemas
+export const BackendMessageSchema = z.object({
+  id: z.string(),
+  chat_id: z.string(),
+  author_type: z.enum(['user', 'assistant']),
+  content_text: z.string().nullable(),
+  render_payload: z.array(z.any()).nullable(),
+  created_at: z.string(),
+})
+
+export const BackendRenderChunkSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('text'),
+    text: z.string(),
+  }),
+  z.object({
+    type: z.literal('button'),
+    text: z.string().optional(),
+    label: z.string(),
+    option_id: z.string(),
+  }),
+])
+
+export const BackendMessagesResponseSchema = z.object({
+  items: z.array(BackendMessageSchema),
+  next_cursor: z.string().nullable(),
+  has_more: z.boolean(),
+})
+
+export const BackendPostMessageResponseSchema = z.object({
+  message: BackendMessageSchema,
+  render_chunks: z.array(BackendRenderChunkSchema),
+})
 
 export const SendPayloadSchema = z.discriminatedUnion('mode', [
   z.object({
@@ -64,3 +100,9 @@ export type Message = z.infer<typeof MessageSchema>
 export type Chat = z.infer<typeof ChatSchema>
 export type ContentItem = z.infer<typeof ContentItemSchema>
 export type Mode = z.infer<typeof ModeSchema>
+
+// Backend API Types
+export type BackendMessage = z.infer<typeof BackendMessageSchema>
+export type BackendRenderChunk = z.infer<typeof BackendRenderChunkSchema>
+export type BackendMessagesResponse = z.infer<typeof BackendMessagesResponseSchema>
+export type BackendPostMessageResponse = z.infer<typeof BackendPostMessageResponseSchema>

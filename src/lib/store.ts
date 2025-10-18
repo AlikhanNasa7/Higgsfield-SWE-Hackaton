@@ -4,8 +4,10 @@ import { type Mode, type Chat, type ContentItem } from '@/types/schemas'
 interface SelectedChat {
   id: string
   title: string
-  createdAt: string
-  updatedAt: string
+  created_at: string
+  user_id: string
+  message_count: number
+  last_message_at: string | null
 }
 
 interface SelectedContent {
@@ -21,9 +23,6 @@ interface UIState {
   // Selection state
   selectedChat: SelectedChat | null
   selectedContent: SelectedContent | null
-
-  // Sidebar state
-  sidebarOpen: boolean
 
   // Content filters
   filters: 'all' | 'images' | 'videos'
@@ -42,7 +41,6 @@ interface UIState {
   setFilter: (filter: 'all' | 'images' | 'videos') => void
   setSearch: (query: string) => void
   setPanelSize: (panel: 'transcript' | 'viewer' | 'contents', size: number) => void
-  toggleSidebar: () => void
 
   // Composer state
   currentMode: Mode
@@ -63,7 +61,6 @@ export const useUIStore = create<UIState>((set, get) => ({
   // Initial state
   selectedChat: null,
   selectedContent: null,
-  sidebarOpen: true,
   filters: 'all',
   searchQuery: '',
   panelSizes: defaultPanelSizes,
@@ -77,8 +74,10 @@ export const useUIStore = create<UIState>((set, get) => ({
         ? {
             id: chat.id,
             title: chat.title,
-            createdAt: chat.createdAt,
-            updatedAt: chat.updatedAt,
+            created_at: chat.created_at,
+            user_id: chat.user_id,
+            message_count: chat.message_count,
+            last_message_at: chat.last_message_at,
           }
         : null,
       selectedContent: null, // Clear selected content when changing chats
@@ -116,10 +115,6 @@ export const useUIStore = create<UIState>((set, get) => ({
         [panel]: size,
       },
     })
-  },
-
-  toggleSidebar: () => {
-    set(state => ({ sidebarOpen: !state.sidebarOpen }))
   },
 
   setMode: mode => {

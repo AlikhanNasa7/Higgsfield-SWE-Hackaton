@@ -52,36 +52,59 @@ function ContentItemCard({
     <motion.div
       variants={fadeUp}
       onClick={onSelect}
-      className={`cursor-pointer rounded-xl overflow-hidden transition-all hover-lift ${
+      className={`cursor-pointer rounded-xl overflow-hidden transition-all hover-lift w-fit ${
         isSelected ? 'ring-2 ring-primary shadow-glow-primary' : 'glass hover:border-primary/30'
       }`}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
     >
-      <div className="aspect-square relative bg-surface group">
-        {content.thumbUrl ? (
+      <div className="aspect-[4/3] relative bg-surface group max-h-32">
+        {content.kind === 'video' ? (
+          // Video thumbnail - Higgsfield.ai style (autoplay)
+          <video
+            src={content.url}
+            loop
+            muted
+            autoPlay
+            playsInline
+            disablePictureInPicture
+            preload="metadata"
+            className="w-full h-full object-contain rounded-xl"
+            style={{
+              maxWidth: '100%',
+              maxHeight: '100%',
+              width: 'auto',
+              height: 'auto',
+            }}
+            aria-label={content.title || 'Video content'}
+          >
+            Your browser does not support the video.
+          </video>
+        ) : content.thumbUrl ? (
           <img
             src={content.thumbUrl}
             alt={content.title || `${content.kind} thumbnail`}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain rounded-xl"
+            style={{
+              maxWidth: '100%',
+              maxHeight: '100%',
+              width: 'auto',
+              height: 'auto',
+            }}
           />
-        ) : content.kind === 'image' ? (
-          <div className="w-full h-full flex items-center justify-center">
-            <Image className="w-12 h-12 text-muted" aria-label="Image placeholder" />
-          </div>
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Video className="w-12 h-12 text-muted" aria-label="Video placeholder" />
+            <Image className="w-12 h-12 text-muted" aria-label="Image placeholder" />
           </div>
         )}
 
         {/* Badge */}
-        <div className="absolute top-2 right-2">
+        <div className="absolute top-1 right-1">
           <Badge tone={content.kind === 'image' ? 'primary' : 'accent'} variant="solid">
             {content.kind === 'image' ? (
-              <Image className="w-3 h-3" aria-label="Image badge" />
+              <Image className="w-2 h-2" aria-label="Image badge" />
             ) : (
-              <Video className="w-3 h-3" aria-label="Video badge" />
+              <Video className="w-2 h-2" aria-label="Video badge" />
             )}
           </Badge>
         </div>
@@ -89,16 +112,16 @@ function ContentItemCard({
         {/* Download button */}
         <motion.button
           onClick={handleDownload}
-          className="absolute top-2 left-2 w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-glow-primary opacity-0 group-hover:opacity-100 transition-opacity ring-focus z-10"
+          className="absolute top-1 left-1 w-6 h-6 rounded-md bg-primary flex items-center justify-center shadow-glow-primary opacity-0 group-hover:opacity-100 transition-opacity ring-focus z-10"
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
           aria-label="Download content"
         >
-          <Download className="w-4 h-4 text-black" />
+          <Download className="w-3 h-3 text-black" />
         </motion.button>
 
         {/* Hover overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3 pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2 pointer-events-none">
           {content.title && (
             <p className="text-xs text-text font-medium truncate">{content.title}</p>
           )}
@@ -139,8 +162,7 @@ export function ContentListMock() {
           <h3 className="text-lg font-semibold text-text">Generated Content</h3>
         </div>
 
-        {/* Filters */}
-        <div className="flex gap-2">
+        {/* <div className="flex gap-2">
           {[
             { value: 'all' as const, label: 'All' },
             { value: 'images' as const, label: 'Images' },
@@ -160,7 +182,6 @@ export function ContentListMock() {
           ))}
         </div>
 
-        {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
           <input
@@ -170,14 +191,14 @@ export function ContentListMock() {
             onChange={e => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-3 text-sm glass border border-border rounded-xl text-text placeholder-muted ring-focus transition-all focus:border-primary/50"
           />
-        </div>
+        </div> */}
       </div>
 
       {/* Content grid */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-2 w-full">
         {filteredContents && filteredContents.length > 0 ? (
           <motion.div
-            className="grid grid-cols-2 gap-3"
+            className="flex flex-wrap gap-2"
             variants={stagger(0, 0.05)}
             initial="initial"
             animate="animate"

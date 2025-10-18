@@ -34,7 +34,7 @@ export const chatsService = {
       await new Promise(resolve => setTimeout(resolve, 300))
       return [...mockChats] // Return copy to prevent external mutations
     }
-    return api.getChats()
+    return (await api.getChats()).items;
   },
 
   /**
@@ -46,8 +46,10 @@ export const chatsService = {
       const newChat: Chat = {
         id: `mock-${Date.now()}`,
         title,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        user_id: '00000000-0000-0000-0000-000000000001',
+        message_count: 0,
+        last_message_at: null,
       }
       mockChats.unshift(newChat)
       return { chat: newChat }

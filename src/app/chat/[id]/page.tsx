@@ -12,13 +12,21 @@ export default function ChatPage() {
   const chatId = params.id as string
   const { selectChat, selectedChat } = useUIStore()
   const { data: chats } = useChats()
-
+  console.log('chats', chats)
   useEffect(() => {
     // Set the selected chat when the page loads
     if (chatId && chats) {
+      console.log('Looking for chatId:', chatId)
+      console.log(
+        'Available chats:',
+        chats.map(c => ({ id: c.id, title: c.title }))
+      )
       const chat = chats.find(c => c.id === chatId)
+      console.log('Found chat:', chat)
       if (chat) {
         selectChat(chat)
+      } else {
+        console.log('Chat not found in list!')
       }
     }
   }, [chatId, chats, selectChat])

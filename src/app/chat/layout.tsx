@@ -8,8 +8,8 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
       {/* Gradient backdrop */}
       <div className="absolute inset-0 gradient-radial-dual opacity-30 pointer-events-none" />
 
-      {/* Sidebar */}
-      <div className="w-80 h-full flex-shrink-0 relative z-10">
+      {/* Sidebar - hidden on small screens, visible on desktop */}
+      <div className="w-80 h-full flex-shrink-0 relative z-10 hidden lg:block">
         <SidebarChats />
       </div>
 

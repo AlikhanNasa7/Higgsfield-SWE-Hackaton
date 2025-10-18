@@ -9,6 +9,7 @@ import { useUIStore } from '@/lib/store'
 import { useChats, useCreateChat, useUpdateChat, useDeleteChat } from '@/lib/hooks/useChats'
 import { type Chat } from '@/types/schemas'
 import { fadeUp } from '@/lib/motion'
+import { CreateChatModal } from '@/components/ui/CreateChatModal'
 
 interface EditableChatItemProps {
   chat: Chat
@@ -53,7 +54,8 @@ function EditableChatItem({ chat, isSelected, onSelect, onDelete }: EditableChat
 
   return (
     <motion.div
-      variants={fadeUp}
+      initial={{ opacity: 1 }}
+      animate={{ opacity: 1 }}
       className={`group flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
         isSelected
           ? 'glass border-primary/30 shadow-glow-primary bg-primary/5'
@@ -76,11 +78,28 @@ function EditableChatItem({ chat, isSelected, onSelect, onDelete }: EditableChat
             autoFocus
           />
         ) : (
-          <span
-            className={`text-sm truncate block ${isSelected ? 'text-text font-medium' : 'text-muted'}`}
-          >
-            {chat.title}
-          </span>
+          <div className="flex flex-col gap-1">
+            <span
+              className={`text-sm truncate block ${isSelected ? 'text-text font-medium' : 'text-muted'}`}
+            >
+              {chat.title}
+            </span>
+            <div className="flex items-center gap-2 text-xs text-muted/70">
+              <span>{chat.message_count} messages</span>
+              <span>•</span>
+              <span>
+                {chat.last_message_at
+                  ? new Date(chat.last_message_at).toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                    })
+                  : new Date(chat.created_at).toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+              </span>
+            </div>
+          </div>
         )}
       </div>
       {!isEditing && (
@@ -114,17 +133,21 @@ function EditableChatItem({ chat, isSelected, onSelect, onDelete }: EditableChat
 export function SidebarChats() {
   const router = useRouter()
   const { selectedChat, selectChat } = useUIStore()
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
-  const { data: chats, isLoading, error } = useChats()
+  const { data: chats, isLoading, error, refetch } = useChats()
   const createMutation = useCreateChat()
   const deleteMutation = useDeleteChat()
+  console.log('chats', chats)
 
-  const handleNewChat = () => {
-    const title = `New Chat ${new Date().toLocaleTimeString()}`
+  const handleCreateChat = (title: string) => {
     createMutation.mutate(title, {
       onSuccess: data => {
+        console.log('data', data) // Refetch chats list
         selectChat(data.chat)
         router.push(`/chat/${data.chat.id}`)
+        setIsModalOpen(false)
+        refetch()
       },
     })
   }
@@ -177,13 +200,13 @@ export function SidebarChats() {
       {/* Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-glow-primary">
+          <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-glow-primary overflow-hidden">
             <Image src="/higgsfield-icon.webp" alt="Higgsfield Chat" width={32} height={32} />
           </div>
           <h2 className="text-lg font-semibold text-text">Higgsfield Chat</h2>
         </div>
         <button
-          onClick={handleNewChat}
+          onClick={() => setIsModalOpen(true)}
           disabled={createMutation.isPending}
           className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-black font-semibold shadow-glow-primary hover:bg-white hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ring-focus"
         >
@@ -195,18 +218,7 @@ export function SidebarChats() {
       {/* Chat List */}
       <div className="flex-1 overflow-y-auto p-4">
         {chats && chats.length > 0 ? (
-          <motion.div
-            className="space-y-2"
-            initial="initial"
-            animate="animate"
-            variants={{
-              animate: {
-                transition: {
-                  staggerChildren: 0.05,
-                },
-              },
-            }}
-          >
+          <motion.div className="space-y-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             {chats.map(chat => (
               <EditableChatItem
                 key={chat.id}
@@ -234,6 +246,14 @@ export function SidebarChats() {
           </div>
         )}
       </div>
+
+      {/* Create Chat Modal */}
+      <CreateChatModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onCreate={handleCreateChat}
+        isLoading={createMutation.isPending}
+      />
     </div>
   )
 }

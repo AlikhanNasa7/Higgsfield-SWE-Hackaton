@@ -4,15 +4,20 @@ import {
   ContentItemSchema,
   MessageSchema,
   SendResponseSchema,
+  BackendMessagesResponseSchema,
+  BackendPostMessageResponseSchema,
   type Chat,
   type ContentItem,
   type Message,
   type SendPayload,
   type SendResponse,
+  type BackendMessagesResponse,
+  type BackendPostMessageResponse,
+  type BackendMessage,
 } from '@/types/schemas'
 import { mockChats, mockMessages, mockContents } from '@/mockData'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === '1'
 
 // Debug logging
@@ -22,15 +27,20 @@ if (typeof window !== 'undefined') {
 
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${path}`
+
   const response = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': '69420', // Bypass ngrok warning page (any value works)
+      'User-Agent': 'Mozilla/5.0', // Some ngrok tunnels require a user agent
       ...init?.headers,
     },
     ...init,
   })
 
   if (!response.ok) {
+    const errorText = await response.text()
+    console.error('API Error:', response.status, errorText)
     throw new Error(`HTTP error! status: ${response.status}`)
   }
 
@@ -38,34 +48,37 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 // API functions
-export async function getChats(): Promise<Chat[]> {
+export async function getChats(limit: number = 10): Promise<Chat[]> {
   if (USE_MOCK) {
     await new Promise(resolve => setTimeout(resolve, 500)) // Simulate network delay
-    return ChatSchema.array().parse(mockChats)
+    return ChatSchema.array().parse(mockChats.slice(0, limit))
   }
 
-  const data = await fetchJson<Chat[]>('/chats')
-  return ChatSchema.array().parse(data)
+  const data = await fetchJson<Chat[]>(`/chats?limit=${limit}`)
+  return data
 }
 
-export async function createChat(title: string): Promise<{ chat: Chat }> {
+export async function createChat(title: string = 'Chat title'): Promise<{ chat: Chat }> {
   if (USE_MOCK) {
     await new Promise(resolve => setTimeout(resolve, 300))
     const newChat: Chat = {
       id: `mock-${Date.now()}`,
       title,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      user_id: '00000000-0000-0000-0000-000000000001',
+      message_count: 0,
+      last_message_at: null,
     }
     mockChats.unshift(newChat)
     return { chat: newChat }
   }
 
-  const data = await fetchJson<{ chat: Chat }>('/chats', {
+  const data = await fetchJson<Chat>('/chats', {
     method: 'POST',
     body: JSON.stringify({ title }),
   })
-  return z.object({ chat: ChatSchema }).parse(data)
+  const chat = ChatSchema.parse(data)
+  return { chat }
 }
 
 export async function updateChat(id: string, title: string): Promise<{ chat: Chat }> {
@@ -74,7 +87,7 @@ export async function updateChat(id: string, title: string): Promise<{ chat: Cha
     const chat = mockChats.find(c => c.id === id)
     if (!chat) throw new Error('Chat not found')
     chat.title = title
-    chat.updatedAt = new Date().toISOString()
+    chat.last_message_at = new Date().toISOString()
     return { chat }
   }
 
@@ -101,16 +114,6 @@ export async function deleteChat(id: string): Promise<{ ok: boolean }> {
     method: 'DELETE',
   })
   return z.object({ ok: z.boolean() }).parse(data)
-}
-
-export async function getMessages(chatId: string): Promise<Message[]> {
-  if (USE_MOCK) {
-    await new Promise(resolve => setTimeout(resolve, 300))
-    return MessageSchema.array().parse(mockMessages[chatId] || [])
-  }
-
-  const data = await fetchJson<Message[]>(`/chats/${chatId}/messages`)
-  return MessageSchema.array().parse(data)
 }
 
 export async function sendMessage(chatId: string, payload: SendPayload): Promise<SendResponse> {
@@ -219,4 +222,56 @@ export async function getContent(contentId: string): Promise<ContentItem> {
 
   const data = await fetchJson<ContentItem>(`/contents/${contentId}`)
   return ContentItemSchema.parse(data)
+}
+
+// Message API functions
+export async function getMessages(chatId: string): Promise<BackendMessagesResponse> {
+  if (USE_MOCK) {
+    await new Promise(resolve => setTimeout(resolve, 300))
+    // Return empty messages for now - we'll populate with mock data later if needed
+    return {
+      items: [],
+      next_cursor: null,
+      has_more: false,
+    }
+  }
+
+  const data = await fetchJson<BackendMessagesResponse>(`/chats/${chatId}/messages`)
+  return BackendMessagesResponseSchema.parse(data)
+}
+
+export async function postMessage(
+  chatId: string,
+  content: string
+): Promise<BackendPostMessageResponse> {
+  if (USE_MOCK) {
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    // Mock response
+    const mockMessage: BackendMessage = {
+      id: `mock-msg-${Date.now()}`,
+      chat_id: chatId,
+      author_type: 'user',
+      content_text: content,
+      render_payload: null,
+      created_at: new Date().toISOString(),
+    }
+
+    const mockResponse: BackendPostMessageResponse = {
+      message: mockMessage,
+      render_chunks: [
+        {
+          type: 'text',
+          text: 'Thank you for your message! This is a mock response.',
+        },
+      ],
+    }
+
+    return BackendPostMessageResponseSchema.parse(mockResponse)
+  }
+
+  const data = await fetchJson<BackendPostMessageResponse>(`/chats/${chatId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  })
+  return BackendPostMessageResponseSchema.parse(data)
 }
