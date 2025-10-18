@@ -3,10 +3,12 @@
 import { useState, useRef, useCallback } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { useDropzone } from 'react-dropzone'
-import { Send, Image, Video, Upload, X } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Send, Image, Video, Upload, X, Loader2 } from 'lucide-react'
 import { useUIStore } from '@/lib/store'
 import { mockMessages, mockContents } from '@/mockData'
 import { type Mode, type Message, type ContentItem } from '@/types/schemas'
+import { Badge } from '@/components/design/Badge'
 
 const MODES: { value: Mode; label: string; icon: React.ReactNode }[] = [
   {
@@ -36,12 +38,10 @@ export function ComposerMock() {
 
   const sendMutation = useMutation({
     mutationFn: async (payload: { mode: Mode; prompt: string; imageFile?: File }) => {
-      // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 2000))
 
       if (!selectedChat) return
 
-      // Create user message
       const userMessage: Message = {
         id: `msg-${Date.now()}`,
         role: 'user',
@@ -49,7 +49,6 @@ export function ComposerMock() {
         parts: [{ type: 'text', text: payload.prompt }],
       }
 
-      // Create assistant message
       const assistantMessage: Message = {
         id: `msg-${Date.now() + 1}`,
         role: 'assistant',
@@ -62,7 +61,6 @@ export function ComposerMock() {
         ],
       }
 
-      // Create content based on mode
       let newContent: ContentItem | undefined
 
       if (payload.mode === 'text-to-image') {
@@ -97,14 +95,12 @@ export function ComposerMock() {
         assistantMessage.producedContentIds = [newContent.id]
       }
 
-      // Add messages to mock data
       const chatId = selectedChat.id
       if (!mockMessages[chatId]) {
         mockMessages[chatId] = []
       }
       mockMessages[chatId].push(userMessage, assistantMessage)
 
-      // Add content to mock data
       if (newContent) {
         if (!mockContents[chatId]) {
           mockContents[chatId] = []
@@ -119,7 +115,7 @@ export function ComposerMock() {
       setSelectedFile(null)
       setImagePreview(null)
       textareaRef.current?.focus()
-      forceUpdate({}) // Force re-render
+      forceUpdate({})
     },
   })
 
@@ -139,7 +135,7 @@ export function ComposerMock() {
       'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'],
     },
     maxFiles: 1,
-    disabled: currentMode !== 'image-to-video',
+    disabled: currentMode !== 'image-to-video' || sendMutation.isPending,
   })
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -167,17 +163,13 @@ export function ComposerMock() {
   }
 
   if (!selectedChat) {
-    return (
-      <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-        Select a chat to start messaging
-      </div>
-    )
+    return <div className="p-6 text-center text-muted">Select a chat to start messaging</div>
   }
 
   return (
-    <div className="p-4 bg-white dark:bg-gray-900">
+    <div className="p-6 space-y-4">
       {/* Mode selector */}
-      <div className="flex gap-1 mb-3">
+      <div className="flex gap-2">
         {MODES.map(mode => (
           <button
             key={mode.value}
@@ -187,10 +179,10 @@ export function ComposerMock() {
                 removeImage()
               }
             }}
-            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ring-focus ${
               currentMode === mode.value
-                ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                ? 'bg-primary/20 text-primary border border-primary/30'
+                : 'glass text-muted hover:text-text hover:bg-white/5'
             }`}
           >
             {mode.icon}
@@ -199,55 +191,68 @@ export function ComposerMock() {
         ))}
       </div>
 
-      {/* Image upload area for image-to-video mode */}
+      {/* Image upload area */}
       {currentMode === 'image-to-video' && (
-        <div
+        <motion.div
           {...getRootProps()}
-          className={`mb-3 p-4 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+          className={`p-6 border-2 border-dashed rounded-2xl cursor-pointer transition-all ${
             isDragActive
-              ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/10'
-              : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+              ? 'border-primary bg-primary/10'
+              : 'border-border glass hover:border-primary/50'
           }`}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
         >
           <input {...getInputProps()} />
           {imagePreview ? (
             <div className="relative">
-              <img src={imagePreview} alt="Preview" className="max-h-32 w-auto mx-auto rounded" />
+              <img
+                src={imagePreview}
+                alt="Preview"
+                className="max-h-40 w-auto mx-auto rounded-xl"
+              />
               <button
                 onClick={e => {
                   e.stopPropagation()
                   removeImage()
                 }}
-                className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                className="absolute top-2 right-2 p-2 bg-error rounded-full text-white hover:bg-error/80 transition-colors"
               >
-                <X className="w-3 h-3" />
+                <X className="w-4 h-4" />
               </button>
             </div>
           ) : (
             <div className="text-center">
-              <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {isDragActive
-                  ? 'Drop the image here...'
-                  : 'Drag & drop an image, or click to select'}
+              <Upload className="w-10 h-10 mx-auto mb-3 text-muted" />
+              <p className="text-sm text-text font-medium mb-1">
+                {isDragActive ? 'Drop the image here...' : 'Drag & drop an image'}
               </p>
+              <p className="text-xs text-muted">or click to select</p>
             </div>
           )}
-        </div>
+        </motion.div>
       )}
 
-      {/* Upload progress */}
+      {/* Progress */}
       {sendMutation.isPending && (
-        <div className="mb-3">
-          <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
-            <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            Generating {currentMode.replace('-', ' ')}...
+        <motion.div
+          className="flex items-center gap-3 px-4 py-3 rounded-xl glass"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <Loader2 className="w-5 h-5 text-primary animate-spin" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-text">
+              Generating {currentMode.replace('-', ' ')}...
+            </p>
+            <p className="text-xs text-muted">This may take a moment</p>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="flex gap-2">
+      <form onSubmit={handleSubmit} className="flex gap-3">
         <div className="flex-1">
           <textarea
             ref={textareaRef}
@@ -262,30 +267,36 @@ export function ComposerMock() {
                 handleSubmit(e)
               }
             }}
-            placeholder={`Describe what you want to generate...`}
-            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md resize-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Describe what you want to generate..."
+            className="w-full px-4 py-3 text-sm glass border border-border rounded-xl resize-none text-text placeholder-muted ring-focus transition-all focus:border-primary/50"
             rows={1}
             disabled={sendMutation.isPending}
           />
         </div>
-        <button
+        <motion.button
           type="submit"
           disabled={
             !prompt.trim() ||
             sendMutation.isPending ||
             (currentMode === 'image-to-video' && !selectedFile)
           }
-          className="flex-shrink-0 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex-shrink-0 px-6 py-3 rounded-xl bg-primary text-black font-semibold shadow-glow-primary hover:bg-white hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all ring-focus"
+          whileHover={{ scale: sendMutation.isPending ? 1 : 1.02 }}
+          whileTap={{ scale: sendMutation.isPending ? 1 : 0.98 }}
         >
-          <Send className="w-4 h-4" />
-        </button>
+          <Send className="w-5 h-5" />
+        </motion.button>
       </form>
 
-      {/* Error message */}
+      {/* Error */}
       {sendMutation.error && (
-        <div className="mt-2 text-sm text-red-600 dark:text-red-400">
+        <motion.div
+          className="px-4 py-3 rounded-xl bg-error/20 border border-error/30 text-error text-sm"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
           Failed to send message. Please try again.
-        </div>
+        </motion.div>
       )}
     </div>
   )

@@ -6,8 +6,13 @@ import { Providers } from './providers'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'AI Content Chat',
-  description: 'Generate images and videos with AI',
+  title: 'Higgsfield AI Chat',
+  description: 'Generate images and videos with Higgsfield AI',
+  icons: {
+    icon: '/higgsfield-icon.webp',
+    shortcut: '/higgsfield-icon.webp',
+    apple: '/higgsfield-icon.webp',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

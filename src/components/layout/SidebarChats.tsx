@@ -1,14 +1,14 @@
 'use client'
 
-import { MessageSquare, Plus, Trash2, Edit3 } from 'lucide-react'
+import { MessageSquare, Plus, Trash2, Edit3, Sparkles } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { useUIStore } from '@/lib/store'
 import { useChats, useCreateChat, useUpdateChat, useDeleteChat } from '@/lib/hooks/useChats'
-import { EmptyState } from '@/components/ui/EmptyState'
-import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton'
-import { ErrorState } from '@/components/ui/ErrorState'
 import { type Chat } from '@/types/schemas'
+import { fadeUp } from '@/lib/motion'
 
 interface EditableChatItemProps {
   chat: Chat
@@ -52,15 +52,18 @@ function EditableChatItem({ chat, isSelected, onSelect, onDelete }: EditableChat
   }
 
   return (
-    <div
-      className={`group flex items-center gap-2 p-3 rounded-lg cursor-pointer transition-colors ${
+    <motion.div
+      variants={fadeUp}
+      className={`group flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
         isSelected
-          ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-900 dark:text-blue-100'
-          : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+          ? 'glass border-primary/30 shadow-glow-primary bg-primary/5'
+          : 'glass hover:bg-white/5 hover:border-white/20'
       }`}
       onClick={!isEditing ? onSelect : undefined}
     >
-      <MessageSquare className="w-4 h-4 flex-shrink-0" />
+      <MessageSquare
+        className={`w-4 h-4 flex-shrink-0 ${isSelected ? 'text-primary' : 'text-muted'}`}
+      />
       <div className="flex-1 min-w-0">
         {isEditing ? (
           <input
@@ -69,11 +72,15 @@ function EditableChatItem({ chat, isSelected, onSelect, onDelete }: EditableChat
             onChange={e => setEditTitle(e.target.value)}
             onBlur={handleSave}
             onKeyDown={handleKeyDown}
-            className="w-full bg-transparent border-none outline-none text-sm"
+            className="w-full bg-transparent border-none outline-none text-sm text-text ring-focus"
             autoFocus
           />
         ) : (
-          <span className="text-sm truncate">{chat.title}</span>
+          <span
+            className={`text-sm truncate block ${isSelected ? 'text-text font-medium' : 'text-muted'}`}
+          >
+            {chat.title}
+          </span>
         )}
       </div>
       {!isEditing && (
@@ -83,24 +90,24 @@ function EditableChatItem({ chat, isSelected, onSelect, onDelete }: EditableChat
               e.stopPropagation()
               setIsEditing(true)
             }}
-            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
-            aria-label="Edit chat title"
+            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors ring-focus"
+            aria-label="Edit chat"
           >
-            <Edit3 className="w-3 h-3" />
+            <Edit3 className="w-3.5 h-3.5 text-muted" />
           </button>
           <button
             onClick={e => {
               e.stopPropagation()
               onDelete()
             }}
-            className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded text-red-600 dark:text-red-400"
+            className="p-1.5 rounded-lg hover:bg-error/20 transition-colors ring-focus"
             aria-label="Delete chat"
           >
-            <Trash2 className="w-3 h-3" />
+            <Trash2 className="w-3.5 h-3.5 text-error" />
           </button>
         </div>
       )}
-    </div>
+    </motion.div>
   )
 }
 
@@ -108,7 +115,6 @@ export function SidebarChats() {
   const router = useRouter()
   const { selectedChat, selectChat } = useUIStore()
 
-  // Use hooks with data service layer
   const { data: chats, isLoading, error } = useChats()
   const createMutation = useCreateChat()
   const deleteMutation = useDeleteChat()
@@ -138,9 +144,11 @@ export function SidebarChats() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col h-full bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">
-        <div className="p-4">
-          <LoadingSkeleton />
+      <div className="flex flex-col h-full glass border-r border-border">
+        <div className="p-4 space-y-3">
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="h-12 rounded-xl glass animate-pulse" />
+          ))}
         </div>
       </div>
     )
@@ -148,33 +156,57 @@ export function SidebarChats() {
 
   if (error) {
     return (
-      <div className="flex flex-col h-full bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">
-        <div className="p-4">
-          <ErrorState
-            title="Failed to load chats"
-            message="Unable to load your chat history. Please try again."
-          />
+      <div className="flex flex-col h-full glass border-r border-border p-4">
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center space-y-2">
+            <p className="text-error text-sm">Failed to load chats</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="text-xs text-primary hover:text-primary-light transition-colors"
+            >
+              Try again
+            </button>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+    <div className="flex flex-col h-full glass border-r border-border">
+      {/* Header */}
+      <div className="p-4 border-b border-border">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-glow-primary">
+            <Image src="/higgsfield-icon.webp" alt="Higgsfield Chat" width={32} height={32} />
+          </div>
+          <h2 className="text-lg font-semibold text-text">Higgsfield Chat</h2>
+        </div>
         <button
           onClick={handleNewChat}
           disabled={createMutation.isPending}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-black font-semibold shadow-glow-primary hover:bg-white hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ring-focus"
         >
           <Plus className="w-4 h-4" />
-          New Chat
+          <span>New Chat</span>
         </button>
       </div>
 
+      {/* Chat List */}
       <div className="flex-1 overflow-y-auto p-4">
         {chats && chats.length > 0 ? (
-          <div className="space-y-1">
+          <motion.div
+            className="space-y-2"
+            initial="initial"
+            animate="animate"
+            variants={{
+              animate: {
+                transition: {
+                  staggerChildren: 0.05,
+                },
+              },
+            }}
+          >
             {chats.map(chat => (
               <EditableChatItem
                 key={chat.id}
@@ -187,22 +219,19 @@ export function SidebarChats() {
                 onDelete={() => handleDeleteChat(chat.id)}
               />
             ))}
-          </div>
+          </motion.div>
         ) : (
-          <EmptyState
-            icon={MessageSquare}
-            title="No chats yet"
-            description="Start a new conversation to begin creating content."
-            action={
-              <button
-                onClick={handleNewChat}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                <Plus className="w-4 h-4" />
-                Create your first chat
-              </button>
-            }
-          />
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center space-y-3">
+              <div className="w-16 h-16 rounded-2xl glass mx-auto flex items-center justify-center">
+                <MessageSquare className="w-8 h-8 text-muted" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-text">No chats yet</p>
+                <p className="text-xs text-muted">Create one to get started</p>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
