@@ -1,6 +1,7 @@
 'use client'
 
 import { SidebarChats } from '@/components/layout/SidebarChats'
+import { TopBar } from '@/components/ui/TopBar'
 
 export default function ChatLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -14,7 +15,10 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
       </div>
 
       {/* Main content */}
-      <div className="flex-1 h-full flex flex-col min-w-0 relative z-10">{children}</div>
+      <div className="flex-1 h-full flex flex-col min-w-0 relative z-10">
+        <TopBar />
+        <div className="flex-1 min-h-0">{children}</div>
+      </div>
     </div>
   )
 }

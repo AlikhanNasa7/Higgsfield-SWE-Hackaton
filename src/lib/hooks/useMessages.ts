@@ -10,14 +10,14 @@ import type {
 /**
  * Hook to fetch messages for a specific chat
  */
-export function useMessages(chatId: string | null) {
+export function useMessages(chatId: string | null, messageCount?: number) {
   return useQuery({
     queryKey: ['messages', chatId],
     queryFn: async () => {
       const response = await getMessages(chatId!)
       return response
     },
-    enabled: !!chatId,
+    enabled: !!chatId && (messageCount === undefined || messageCount > 0),
     staleTime: 2 * 60 * 1000, // 2 minutes - messages don't change often
     gcTime: 5 * 60 * 1000, // 5 minutes (garbage collection time)
     refetchOnWindowFocus: false, // Don't refetch when window gains focus

@@ -138,12 +138,10 @@ export function SidebarChats() {
   const { data: chats, isLoading, error, refetch } = useChats()
   const createMutation = useCreateChat()
   const deleteMutation = useDeleteChat()
-  console.log('chats', chats)
 
   const handleCreateChat = (title: string) => {
     createMutation.mutate(title, {
       onSuccess: data => {
-        console.log('data', data) // Refetch chats list
         selectChat(data.chat)
         router.push(`/chat/${data.chat.id}`)
         setIsModalOpen(false)

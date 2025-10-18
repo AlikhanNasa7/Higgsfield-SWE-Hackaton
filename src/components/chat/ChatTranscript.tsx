@@ -14,7 +14,11 @@ export function ChatTranscript() {
   const { selectedChat } = useUIStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const { data: messagesResponse, isLoading, error } = useMessages(selectedChat?.id || null)
+  const {
+    data: messagesResponse,
+    isLoading,
+    error,
+  } = useMessages(selectedChat?.id || null, selectedChat?.message_count)
   const chatMessages = useMemo(() => {
     return messagesResponse?.items || []
   }, [messagesResponse])
@@ -40,6 +44,39 @@ export function ChatTranscript() {
             <p className="text-muted">Choose a chat from the sidebar to start the conversation.</p>
           </div>
         </motion.div>
+      </div>
+    )
+  }
+
+  // If chat has 0 messages, don't fetch and show empty state
+  if (selectedChat.message_count === 0) {
+    return (
+      <div className="h-full flex flex-col bg-surface/50">
+        {/* Messages area - empty state */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex items-center justify-center h-full">
+            <motion.div
+              className="text-center space-y-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="w-16 h-16 rounded-2xl glass mx-auto flex items-center justify-center">
+                <MessageSquare className="w-8 h-8 text-muted" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-text mb-1">No messages yet</h3>
+                <p className="text-sm text-muted">
+                  Start the conversation by typing a message below.
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+
+        {/* Composer */}
+        <div className="border-t border-border glass">
+          <Composer />
+        </div>
       </div>
     )
   }
