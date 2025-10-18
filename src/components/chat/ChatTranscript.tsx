@@ -23,8 +23,6 @@ export function ChatTranscript() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages])
 
-  console.log('chatMessages', chatMessages)
-
   if (!selectedChat) {
     return (
       <div className="h-full flex flex-col items-center justify-center">

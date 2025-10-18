@@ -18,7 +18,10 @@ export function useMessages(chatId: string | null) {
       return response
     },
     enabled: !!chatId,
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 2 * 60 * 1000, // 2 minutes - messages don't change often
+    gcTime: 5 * 60 * 1000, // 5 minutes (garbage collection time)
+    refetchOnWindowFocus: false, // Don't refetch when window gains focus
+    refetchOnMount: false, // Don't refetch if data is already cached
   })
 }
 
