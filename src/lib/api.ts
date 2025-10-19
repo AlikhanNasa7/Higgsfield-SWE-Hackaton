@@ -360,6 +360,9 @@ export interface GenerateContentResponse {
 export async function generateContent(
   request: GenerateContentRequest
 ): Promise<GenerateContentResponse> {
+  if ((request.model_name === 'wan-25-fast' || request.model_name === 'kling-2-5') && request.mode === 'image-to-video') {
+    request.seed = 1
+  }
   const data = await fetchJson<GenerateContentResponse>('/higgsfield/generate', {
     method: 'POST',
     body: JSON.stringify(request),
