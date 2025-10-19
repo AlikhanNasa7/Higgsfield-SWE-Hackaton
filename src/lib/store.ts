@@ -24,6 +24,9 @@ interface UIState {
   selectedChat: SelectedChat | null
   selectedContent: SelectedContent | null
 
+  // Generated content storage
+  generatedContent: Record<string, ContentItem[]> // chatId -> content items
+
   // Content filters
   filters: 'all' | 'images' | 'videos'
   searchQuery: string
@@ -38,6 +41,7 @@ interface UIState {
   // Actions
   selectChat: (chat: Chat | null) => void
   selectContent: (content: ContentItem | null) => void
+  addGeneratedContent: (chatId: string, content: ContentItem) => void
   setFilter: (filter: 'all' | 'images' | 'videos') => void
   setSearch: (query: string) => void
   setPanelSize: (panel: 'transcript' | 'viewer' | 'contents', size: number) => void
@@ -45,6 +49,8 @@ interface UIState {
   // Composer state
   currentMode: Mode
   setMode: (mode: Mode) => void
+  currentModel: string
+  setModel: (model: string) => void
 
   // Upload state
   uploadProgress: number | null
@@ -61,10 +67,12 @@ export const useUIStore = create<UIState>((set, get) => ({
   // Initial state
   selectedChat: null,
   selectedContent: null,
+  generatedContent: {},
   filters: 'all',
   searchQuery: '',
   panelSizes: defaultPanelSizes,
   currentMode: 'text-to-image',
+  currentModel: 'nano-banana',
   uploadProgress: null,
 
   // Actions
@@ -99,6 +107,18 @@ export const useUIStore = create<UIState>((set, get) => ({
     })
   },
 
+  addGeneratedContent: (chatId, content) => {
+    const currentGeneratedContent = get().generatedContent
+    const chatContent = currentGeneratedContent[chatId] || []
+
+    set({
+      generatedContent: {
+        ...currentGeneratedContent,
+        [chatId]: [content, ...chatContent], // Add new content at the beginning
+      },
+    })
+  },
+
   setFilter: filter => {
     set({ filters: filter })
   },
@@ -119,6 +139,10 @@ export const useUIStore = create<UIState>((set, get) => ({
 
   setMode: mode => {
     set({ currentMode: mode })
+  },
+
+  setModel: model => {
+    set({ currentModel: model })
   },
 
   setUploadProgress: progress => {

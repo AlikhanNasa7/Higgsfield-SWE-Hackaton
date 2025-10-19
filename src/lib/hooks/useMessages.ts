@@ -32,8 +32,15 @@ export function usePostMessage() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ chatId, content }: { chatId: string; content: string }) =>
-      postMessage(chatId, content),
+    mutationFn: ({
+      chatId,
+      text,
+      attachmentUrls,
+    }: {
+      chatId: string
+      text: string
+      attachmentUrls?: string[]
+    }) => postMessage(chatId, text, attachmentUrls),
     onSuccess: (data, variables) => {
       const { chatId } = variables
 

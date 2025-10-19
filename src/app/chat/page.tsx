@@ -7,7 +7,6 @@ import { MessageSquare } from 'lucide-react'
 export default function ChatListPage() {
   return (
     <div className="flex flex-col h-full w-full">
-      <TopBar title="AI Content Chat" />
       <div className="flex-1 flex items-center justify-center">
         <EmptyState
           icon={MessageSquare}

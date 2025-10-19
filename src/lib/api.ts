@@ -17,7 +17,7 @@ import {
 } from '@/types/schemas'
 import { mockChats, mockMessages, mockContents } from '@/mockData'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_BASE_URL = 'https://zestful-flexibility-production.up.railway.app'
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === '1'
 
 // Debug logging
@@ -31,12 +31,11 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
-      'ngrok-skip-browser-warning': '69420', // Bypass ngrok warning page (any value works)
-      'User-Agent': 'Mozilla/5.0', // Some ngrok tunnels require a user agent
       ...init?.headers,
     },
     ...init,
   })
+  console.log('response', response)
 
   if (!response.ok) {
     const errorText = await response.text()
@@ -237,12 +236,13 @@ export async function getMessages(chatId: string): Promise<BackendMessagesRespon
   }
 
   const data = await fetchJson<BackendMessagesResponse>(`/chats/${chatId}/messages`)
-  return BackendMessagesResponseSchema.parse(data)
+  return data
 }
 
 export async function postMessage(
   chatId: string,
-  content: string
+  text: string,
+  attachmentUrls?: string[]
 ): Promise<BackendPostMessageResponse> {
   if (USE_MOCK) {
     await new Promise(resolve => setTimeout(resolve, 1000))
@@ -251,7 +251,7 @@ export async function postMessage(
       id: `mock-msg-${Date.now()}`,
       chat_id: chatId,
       author_type: 'user',
-      content_text: content,
+      content_text: text,
       render_payload: null,
       created_at: new Date().toISOString(),
     }
@@ -271,7 +271,118 @@ export async function postMessage(
 
   const data = await fetchJson<BackendPostMessageResponse>(`/chats/${chatId}/messages`, {
     method: 'POST',
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({
+      text,
+      ...(attachmentUrls && { attachments: attachmentUrls }),
+    }),
   })
-  return BackendPostMessageResponseSchema.parse(data)
+  return data
+}
+
+// S3 Attachment APIs
+export interface PresignRequest {
+  file_name: string
+  content_type: string
+  size: number
+}
+
+export interface PresignResponse {
+  upload_url: string
+  download_url: string
+  upload_id: string
+}
+
+/**
+ * Get presigned URL for S3 upload
+ */
+export async function getPresignedUrl(request: PresignRequest): Promise<PresignResponse> {
+  const data = await fetchJson<PresignResponse>('/attachments/presign', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  })
+  return data
+}
+
+/**
+ * Upload file to S3 using presigned URL
+ */
+export async function uploadToS3(file: File, uploadUrl: string): Promise<void> {
+  console.log('uploadUrl', uploadUrl)
+  console.log('file', file)
+
+  // Convert file to ArrayBuffer to match Python's binary approach
+  const arrayBuffer = await file.arrayBuffer()
+
+  const response = await fetch(uploadUrl, {
+    method: 'PUT',
+    body: arrayBuffer,
+    headers: {
+      'Content-Type': file.type,
+    },
+    mode: 'cors',
+  })
+
+  console.log('Response status:', response.status)
+  console.log('Response headers:', Object.fromEntries(response.headers.entries()))
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error('Error response:', errorText)
+    throw new Error(`Upload failed: ${response.status} - ${response.statusText}`)
+  }
+
+  console.log('S3 upload completed successfully')
+}
+
+// Content Generation API
+export interface GenerateContentRequest {
+  option_id: string
+  mode: string
+  model_name: string
+  image_url?: string
+  aspect_ratio?: string
+  duration?: number
+  resolution?: string
+  quality?: string
+  style_strength?: number
+  enhance_prompt?: boolean
+  seed?: number
+  motion_strength?: number
+}
+
+export interface GenerateContentResponse {
+  url: string
+}
+
+/**
+ * Generate content using the Higgsfield API
+ */
+export async function generateContent(
+  request: GenerateContentRequest
+): Promise<GenerateContentResponse> {
+  const data = await fetchJson<GenerateContentResponse>('/higgsfield/generate', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  })
+  return data
+}
+
+/**
+ * Fetch attachments by chat ID
+ */
+export interface AttachmentItem {
+  id: string
+  kind: 'image' | 'video'
+  storage_url: string
+  option_id: string | null
+  created_at: string
+}
+
+export interface AttachmentsResponse {
+  items: AttachmentItem[]
+}
+
+export async function getAttachmentsByChat(chatId: string): Promise<AttachmentsResponse> {
+  const data = await fetchJson<AttachmentsResponse>(`/attachments/by-chat/${chatId}`)
+  return data
 }

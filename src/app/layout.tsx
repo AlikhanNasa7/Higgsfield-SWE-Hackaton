@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import { Toaster } from 'react-hot-toast'
 import '@/globals.css'
 import { Providers } from './providers'
 
@@ -20,6 +21,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={inter.className}>
         <Providers>{children}</Providers>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: 'var(--surface)',
+              color: 'var(--text)',
+              border: '1px solid var(--border)',
+              borderRadius: '12px',
+            },
+          }}
+        />
       </body>
     </html>
   )

@@ -6,6 +6,11 @@ export const PartSchema = z.discriminatedUnion('type', [
     text: z.string(),
   }),
   z.object({
+    type: z.literal('image'),
+    imageUrl: z.string(),
+    alt: z.string().optional(),
+  }),
+  z.object({
     type: z.literal('Button'),
     label: z.string(),
     targetContentId: z.string(),
@@ -48,6 +53,7 @@ export const BackendMessageSchema = z.object({
   author_type: z.enum(['user', 'assistant']),
   content_text: z.string().nullable(),
   render_payload: z.array(z.any()).nullable(),
+  attachments: z.array(z.string()).optional(),
   created_at: z.string(),
 })
 
@@ -55,6 +61,11 @@ export const BackendRenderChunkSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('text'),
     text: z.string(),
+  }),
+  z.object({
+    type: z.literal('image'),
+    imageUrl: z.string(),
+    alt: z.string().optional(),
   }),
   z.object({
     type: z.literal('button'),
@@ -73,6 +84,11 @@ export const BackendMessagesResponseSchema = z.object({
 export const BackendPostMessageResponseSchema = z.object({
   message: BackendMessageSchema,
   render_chunks: z.array(BackendRenderChunkSchema),
+})
+
+export const PostMessageRequestSchema = z.object({
+  text: z.string(),
+  attachments: z.array(z.string()).optional(),
 })
 
 export const SendPayloadSchema = z.discriminatedUnion('mode', [

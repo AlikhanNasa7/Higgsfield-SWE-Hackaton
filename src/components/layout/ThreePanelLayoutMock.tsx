@@ -5,8 +5,8 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { useUIStore } from '@/lib/store'
 import { mockContents } from '@/mockData'
 import { ChatTranscript } from '@/components/chat/ChatTranscript'
-import { ContentViewerMock } from '@/components/content/ContentViewerMock'
-import { ContentListMock } from '@/components/content/ContentListMock'
+import { ContentViewer } from '@/components/content/ContentViewer'
+import { ContentList } from '@/components/content/ContentList'
 
 function ResizeHandle() {
   return <PanelResizeHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
@@ -17,29 +17,19 @@ export function ThreePanelLayoutMock() {
 
   // Check if the current chat has any generated content
   const hasContent = useMemo(() => {
-    return selectedChat ? (mockContents[selectedChat.id]?.length ?? 0) > 0 : false
-  }, [selectedChat])
-
-  const hasSelectedContent = !!selectedContent
-
-  // Determine layout mode
-  const layoutMode = useMemo(() => {
-    if (!hasContent) return 'single'
-    if (!hasSelectedContent) return 'two-panel'
-    return 'three-panel'
-  }, [hasContent, hasSelectedContent])
+    return selectedChat ? selectedContent !== null : false
+  }, [selectedChat, selectedContent])
 
   // If no content exists at all, show only transcript
-  if (layoutMode === 'single') {
+  if (!hasContent) {
     return (
       <div className="h-full w-full overflow-hidden">
         <ChatTranscript />
       </div>
     )
   }
-
   // If content exists but none selected, show transcript and content list
-  if (layoutMode === 'two-panel') {
+  if (!selectedContent) {
     return (
       <div className="h-full w-full overflow-hidden">
         <PanelGroup
@@ -60,7 +50,7 @@ export function ThreePanelLayoutMock() {
 
           <Panel id="contents-two" defaultSize={40} minSize={20} maxSize={70}>
             <div className="h-full w-full overflow-hidden">
-              <ContentListMock />
+              <ContentList />
             </div>
           </Panel>
         </PanelGroup>
@@ -107,7 +97,7 @@ export function ThreePanelLayoutMock() {
             >
               <Panel id="viewer-vertical" defaultSize={65} minSize={40} maxSize={85}>
                 <div className="h-full w-full border-b border-border overflow-hidden">
-                  <ContentViewerMock />
+                  <ContentViewer />
                 </div>
               </Panel>
 
@@ -115,7 +105,7 @@ export function ThreePanelLayoutMock() {
 
               <Panel id="contents-vertical" defaultSize={35} minSize={15} maxSize={60}>
                 <div className="h-full w-full overflow-hidden">
-                  <ContentListMock />
+                  <ContentList />
                 </div>
               </Panel>
             </PanelGroup>

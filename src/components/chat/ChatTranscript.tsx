@@ -1,11 +1,12 @@
 'use client'
 
-import { useRef, useEffect, useMemo } from 'react'
+import { useRef, useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useUIStore } from '@/lib/store'
 import { useMessages } from '@/lib/hooks/useMessages'
 import { MessageBubbleBackend } from './MessageBubbleBackend'
 import { Composer } from './Composer'
+import { ChatGPTLoading } from './ChatGPTLoading'
 import { MessageSquare, Loader2 } from 'lucide-react'
 import { fadeUp, stagger } from '@/lib/motion'
 import type { BackendMessage } from '@/types/schemas'
@@ -13,6 +14,9 @@ import type { BackendMessage } from '@/types/schemas'
 export function ChatTranscript() {
   const { selectedChat } = useUIStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [pendingImages, setPendingImages] = useState<string[]>([])
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null)
+  const [isWaitingForResponse, setIsWaitingForResponse] = useState(false)
 
   const {
     data: messagesResponse,
@@ -23,9 +27,37 @@ export function ChatTranscript() {
     return messagesResponse?.items || []
   }, [messagesResponse])
 
+  console.log('chatMessages', chatMessages)
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [chatMessages])
+  }, [chatMessages, pendingImages, pendingMessage, isWaitingForResponse])
+
+  // Listen for message sent events
+  useEffect(() => {
+    const handleMessageSent = (event: CustomEvent) => {
+      const { chatId, message, images, isLoading } = event.detail
+      if (chatId === selectedChat?.id) {
+        if (isLoading) {
+          // Show pending message and images
+          setPendingMessage(message)
+          setPendingImages(images || [])
+          setIsWaitingForResponse(true)
+        } else {
+          // Clear pending state when response is received
+          setPendingMessage(null)
+          setPendingImages([])
+          setIsWaitingForResponse(false)
+        }
+      }
+    }
+
+    window.addEventListener('messageSent', handleMessageSent as EventListener)
+
+    return () => {
+      window.removeEventListener('messageSent', handleMessageSent as EventListener)
+    }
+  }, [selectedChat?.id])
 
   if (!selectedChat) {
     return (
@@ -137,10 +169,30 @@ export function ChatTranscript() {
             animate="animate"
           >
             {chatMessages.map((message: BackendMessage) => (
-              <motion.div key={message.id} variants={fadeUp}>
-                <MessageBubbleBackend message={message} />
-              </motion.div>
+              <div key={message.id}>
+                <MessageBubbleBackend message={message} messages={chatMessages} />
+              </div>
             ))}
+
+            {/* Show pending message with attachments */}
+            {pendingMessage && (
+              <MessageBubbleBackend
+                message={{
+                  id: 'pending',
+                  chat_id: selectedChat.id,
+                  author_type: 'user',
+                  content_text: pendingMessage,
+                  render_payload: null,
+                  attachments: pendingImages,
+                  created_at: new Date().toISOString(),
+                }}
+                messages={chatMessages}
+              />
+            )}
+
+            {/* Show loading state */}
+            {isWaitingForResponse && <ChatGPTLoading />}
+
             <div ref={messagesEndRef} />
           </motion.div>
         ) : (
@@ -162,6 +214,44 @@ export function ChatTranscript() {
             </motion.div>
           </div>
         )}
+
+        {/* Show pending items even when no messages */}
+        {(!chatMessages || chatMessages.length === 0) &&
+          (pendingMessage || pendingImages.length > 0) && (
+            <motion.div
+              className="space-y-6"
+              variants={stagger(0, 0.05)}
+              initial="initial"
+              animate="animate"
+            >
+              {/* Show pending message with attachments */}
+              {pendingMessage && (
+                <motion.div variants={fadeUp}>
+                  <MessageBubbleBackend
+                    message={{
+                      id: 'pending',
+                      chat_id: selectedChat.id,
+                      author_type: 'user',
+                      content_text: pendingMessage,
+                      render_payload: null,
+                      attachments: pendingImages,
+                      created_at: new Date().toISOString(),
+                    }}
+                    messages={chatMessages}
+                  />
+                </motion.div>
+              )}
+
+              {/* Show loading state */}
+              {isWaitingForResponse && (
+                <motion.div variants={fadeUp}>
+                  <ChatGPTLoading />
+                </motion.div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </motion.div>
+          )}
       </div>
 
       {/* Composer */}
